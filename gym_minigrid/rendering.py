@@ -108,6 +108,11 @@ def point_in_triangle(a, b, c):
 
     return fn
 
+def point_in_arrow(xmin, xmax, ymin, ymax, a, b, c):
+    fn_1 = point_in_rect(xmin, xmax, ymin, ymax)
+    fn_2 = point_in_triangle(a, b, c)
+    return lambda x, y: fn_1(x,y) or fn_2(x,y)
+
 def highlight_img(img, color=(255, 255, 255), alpha=0.30):
     """
     Add highlighting to an image
