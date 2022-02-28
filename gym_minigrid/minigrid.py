@@ -47,6 +47,8 @@ OBJECT_TO_IDX = {
     'goal'          : 8,
     'lava'          : 9,
     'agent'         : 10,
+    'arrow'         : 11,
+    'hidden_lava'   : 1
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -125,7 +127,10 @@ class WorldObj:
         # State, 0: open, 1: closed, 2: locked
         is_open = state == 0
         is_locked = state == 2
-
+        for key, value in Arrow.ORIENT_DICT.items():
+            if state == value:
+                orientation = key
+                
         if obj_type == 'wall':
             v = Wall(color)
         elif obj_type == 'floor':
@@ -142,6 +147,8 @@ class WorldObj:
             v = Goal()
         elif obj_type == 'lava':
             v = Lava()
+        elif obj_type = 'arrow':
+            v = Arrow(color, orientation)
         else:
             assert False, "unknown object type in decode '%s'" % obj_type
 
@@ -209,6 +216,77 @@ class Wall(WorldObj):
 
     def render(self, img):
         fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
+
+class Arrow(WorldObj):
+    
+    ORIENT_DICT = {
+        'N': 1,
+        'S': 2,
+        'E': 3,
+        'W': 4
+    }
+
+    WIDTH_OFFSET = 1/3
+    HEIGHT_OFFSET = 1/4
+    ARROW_WIDTH_OFFSET = 1/8
+    ARROW_HEIGHT_OFFSET = 1/8
+
+    def __init__(self, color='yellow', orientation='E'):
+        #import ipdb; ipdb.set_trace()
+        if len(color) == 1:
+            import ipdb; ipdb.set_trace()
+        super().__init__('arrow', color)
+        self.orientation = orientation
+
+    def render(self, img):
+        if self.orientation == 'N':
+            xmin = self.WIDTH_OFFSET
+            xmax = 1 - self.WIDTH_OFFSET
+            ymin = self.HEIGHT_OFFSET
+            ymax = 1 - self.HEIGHT_OFFSET
+            a = [self.ARROW_WIDTH_OFFSET, ymin + self.ARROW_HEIGHT_OFFSET]
+            b = [1 - self.ARROW_WIDTH_OFFSET, ymin + self.ARROW_HEIGHT_OFFSET]
+            c = [1 / 2, self.ARROW_HEIGHT_OFFSET]
+        elif self.orientation == 'S':
+            xmin = self.WIDTH_OFFSET
+            xmax = 1 - self.WIDTH_OFFSET
+            ymin = self.HEIGHT_OFFSET
+            ymax = 1 - self.HEIGHT_OFFSET
+            a = [self.ARROW_WIDTH_OFFSET, ymax - self.ARROW_HEIGHT_OFFSET]
+            b = [1-self.ARROW_WIDTH_OFFSET, ymax - self.ARROW_HEIGHT_OFFSET]
+            c = [1/2, 1-self.ARROW_HEIGHT_OFFSET]
+        elif self.orientation == 'E':
+            ymin = self.WIDTH_OFFSET
+            ymax = 1 - self.WIDTH_OFFSET
+            xmin = self.HEIGHT_OFFSET
+            xmax = 1 - self.HEIGHT_OFFSET
+            a = [xmax - self.ARROW_HEIGHT_OFFSET, self.ARROW_WIDTH_OFFSET]
+            b = [xmax - self.ARROW_HEIGHT_OFFSET, 1 - self.ARROW_WIDTH_OFFSET]
+            c = [1 - self.ARROW_HEIGHT_OFFSET, 1 / 2]
+        elif self.orientation == 'W':
+            ymin = self.WIDTH_OFFSET
+            ymax = 1 - self.WIDTH_OFFSET
+            xmin = self.HEIGHT_OFFSET
+            xmax = 1 - self.HEIGHT_OFFSET
+            a = [xmin + self.ARROW_HEIGHT_OFFSET, self.ARROW_WIDTH_OFFSET]
+            b = [xmin + self.ARROW_HEIGHT_OFFSET, 1 - self.ARROW_WIDTH_OFFSET]
+            c = [self.ARROW_HEIGHT_OFFSET, 1 / 2]
+            pass
+        fill_coords(img, point_in_arrow(xmin, xmax, ymin, ymax, a, b, c), COLORS[self.color])
+
+    def encode(self):
+        return (OBJECT_TO_IDX[self.type], COLOR_TO_IDX[self.color], self.ORIENT_DICT[self.orientation])
+
+class HiddenLava(WorldObj):
+    def __init__(self):
+        super().__init__('hidden_lava', 'red')
+
+    # def can_overlap(self):
+    #     return True
+
+    def render(self, img):
+        return img
+
 
 class Door(WorldObj):
     def __init__(self, color, is_open=False, is_locked=False):
@@ -769,6 +847,8 @@ class MiniGridEnv(gym.Env):
             'box'           : 'B',
             'goal'          : 'G',
             'lava'          : 'V',
+            'arrow'         : 'R',
+            'hidden_lava'   : 'H'
         }
 
         # Short string for opened door
@@ -1125,7 +1205,7 @@ class MiniGridEnv(gym.Env):
             if fwd_cell != None and fwd_cell.type == 'goal':
                 done = True
                 reward = self._reward()
-            if fwd_cell != None and fwd_cell.type == 'lava':
+            if fwd_cell != None and (fwd_cell.type == 'lava' or fwd_cell.type == 'hidden_lava'):
                 done = True
 
         # Pick up an object
