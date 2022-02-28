@@ -147,7 +147,7 @@ class WorldObj:
             v = Goal()
         elif obj_type == 'lava':
             v = Lava()
-        elif obj_type = 'arrow':
+        elif obj_type == 'arrow':
             v = Arrow(color, orientation)
         else:
             assert False, "unknown object type in decode '%s'" % obj_type
